@@ -61,6 +61,8 @@ jobs:
           echo "${{ secrets.CONFIG_YML }}" | base64 -d - > config.yml
           echo "${{ secrets.CLOUD_PRIV_KEY }}" | base64 -d - > id
           chmod 400 id
+          chmod 600 config.yml
+          sed -i "s|# local_copy_dir:|local_copy_dir: $PWD\/server|" config.yml
       
       - name: Load Artifact
         uses: actions/download-artifact@master
