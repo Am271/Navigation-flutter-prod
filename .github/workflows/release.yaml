@@ -70,7 +70,7 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: app
-          path: fdroid/repo/app.apk
+          path: fdroid/repo
       
       - name: Create metadata for repo
         run: |
