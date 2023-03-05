@@ -71,7 +71,7 @@ jobs:
           path: repo
       
       - name: Create metadata for repo
-        run: fdroid update --create-metadata
+        run: ls && ls repo/ && fdroid update --create-metadata
           
       - name: Rsync repo with cloud
         run: yes | rsync -e "ssh -o StrictHostKeyChecking=no -i ./id -p ${{ secrets.NGROK_PORT }}" -avzh $PWD/repo/server/fdroid pi@${{ secrets.NGROK_URL }}:/var/www/fdroid
