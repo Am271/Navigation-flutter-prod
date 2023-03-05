@@ -47,36 +47,32 @@ jobs:
   release:
     name: Release App on Fdroid
     runs-on: ubuntu-latest
+    container:
+      image: am271/fdroid-server:latest
+      options: "--entrypoint /bin/bash"
     needs: build
     steps:
       - uses: actions/checkout@v3
       
       - name: Create basic directory structure
-        run: mkdir -p fdroid/repo
-      
-      - name: Install F-Droid server software
-        run: |
-         sudo add-apt-repository ppa:fdroid/fdroidserver
-         sudo apt-get update
-         sudo apt-get install fdroidserver
+        run: mkdir repo
       
       - name: Set up repo secrets
         run: |
-          echo "${{ secrets.KEYSTORE_P12 }}" | base64 -d - > fdroid/keystore.p12
-          echo "${{ secrets.CONFIG_YML }}" | base64 -d - > fdroid/config.yml
+          echo "${{ secrets.KEYSTORE_P12 }}" | base64 -d - > keystore.p12
+          echo "${{ secrets.CONFIG_YML }}" | base64 -d - > config.yml
           echo "${{ secrets.CLOUD_PRIV_KEY }}" | base64 -d - > id
+          chmod 400 id
       
       - name: Load Artifact
         uses: actions/download-artifact@master
         with:
           name: app
-          path: fdroid/repo
+          path: repo
       
       - name: Create metadata for repo
-        run: |
-          cd fdroid
-          fdroid update --create-metadata
+        run: fdroid update --create-metadata
           
       - name: Rsync repo with cloud
-        run: yes | rsync -e "ssh -o StrictHostKeyChecking=no -i ./id -p ${{ secrets.NGROK_PORT }}" -avzh $PWD/fdroid/repo/server/fdroid pi@${{ secrets.NGROK_URL }}:/var/www/fdroid
+        run: yes | rsync -e "ssh -o StrictHostKeyChecking=no -i ./id -p ${{ secrets.NGROK_PORT }}" -avzh $PWD/repo/server/fdroid pi@${{ secrets.NGROK_URL }}:/var/www/fdroid
       
