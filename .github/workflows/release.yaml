@@ -52,10 +52,8 @@ jobs:
       options: "--entrypoint /bin/bash"
     needs: build
     steps:
-      - uses: actions/checkout@v3
-      
       - name: Create basic directory structure
-        run: mkdir repo
+        run: mkdir repo && mkdir server
       
       - name: Set up repo secrets
         run: |
@@ -70,9 +68,9 @@ jobs:
           name: app
           path: repo
       
-      - name: Create metadata for repo
-        run: ls && ls repo/ && fdroid update --create-metadata
+      - name: Create metadata for repo and deploy to local directory
+        run: fdroid update --create-metadata && fdroid deploy
           
       - name: Rsync repo with cloud
-        run: yes | rsync -e "ssh -o StrictHostKeyChecking=no -i ./id -p ${{ secrets.NGROK_PORT }}" -avzh $PWD/repo/server/fdroid pi@${{ secrets.NGROK_URL }}:/var/www/fdroid
+        run: yes | rsync -e "ssh -o StrictHostKeyChecking=no -i ./id -p ${{ secrets.NGROK_PORT }}" -avzh $PWD/server/fdroid/repo pi@${{ secrets.NGROK_URL }}:/var/www/fdroid
       
