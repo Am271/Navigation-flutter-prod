@@ -1,0 +1,81 @@
+name: Build and Release App
+
+on:
+  push:
+    branches:
+      - '*'
+    
+jobs:
+  build:
+    name: Building Release APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Flutter Setup
+        uses: subosito/flutter-action@v2.8.0
+        with:
+          channel: 'stable'
+      
+      - name: Firebase login
+        run: |
+          dart pub global activate flutterfire_cli
+          curl -sL https://firebase.tools | bash
+          flutterfire configure -p ${{ secrets.PROJ_ID }} --platforms="android,ios" -i com.example.navigation \
+          -a com.example.navigation -m -a com.example.navigation --token=${{ secrets.FIREBASE_TOKEN }}
+        shell: bash
+      
+      - name: Extract SDK and prepare for building
+        run: |
+          curl -o heresdk-explore-flutter.tar.gz https://dl.dropboxusercontent.com/s/2rgack3gpf0j5kp/heresdk-explore-flutter-4.13.0.0.3315.tar.gz?dl=0
+          echo "${{ secrets.HERE_CREDS }}" | base64 -d - > credentials.env
+          mkdir -p plugins/here_sdk
+          tar xzf heresdk-explore-flutter.tar.gz -C plugins/here_sdk
+        shell: bash  
+    
+      - name: Build APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+      
+      - name: Create Artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: app
+          path: build/app/outputs/flutter-apk/app-release.apk
+  
+  release:
+    name: Release App on Fdroid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Create basic directory structure
+        run: mkdir -p fdroid/repo
+      
+      - name: Install F-Droid server software
+        run: |
+         sudo add-apt-repository ppa:fdroid/fdroidserver
+         sudo apt-get update
+         sudo apt-get install fdroidserver
+      
+      - name: Set up repo secrets
+        run: |
+          echo "${{ secrets.KEYSTORE_P12 }}" | base64 -d - > fdroid/keystore.p12
+          echo "${{ secrets.CONFIG_YML }}" | base64 -d - > fdroid/config.yml
+          echo "${{ secrets.CLOUD_PRIV_KEY }}" | base64 -d - > id
+      
+      - name: Load Artifact
+        uses: actions/download-artifact@master
+        with:
+          name: app
+          path: fdroid/repo/app.apk
+      
+      - name: Create metadata for repo
+        run: |
+          cd fdroid
+          fdroid update --create-metadata
+          
+      - name: Rsync repo with cloud
+        run: yes | rsync -e "ssh -i ./id -p ${{ secrets.NGROK_PORT }}" -avzh $PWD/fdroid/repo/server/fdroid pi@${{ secrets.NGROK_URL }}:/var/www/fdroid
+      
